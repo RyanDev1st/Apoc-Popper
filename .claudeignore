@@ -1,0 +1,5 @@
+node_modules
+.gitignore
+.env.example
+.next
+C:\Users\admin\maze game\.claude-flow

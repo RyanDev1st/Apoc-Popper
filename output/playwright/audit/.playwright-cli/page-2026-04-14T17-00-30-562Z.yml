@@ -1,0 +1,38 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - paragraph [ref=e5]: Quiz Survivors
+        - strong [ref=e6]: One room. Six minutes. Pixel chaos.
+      - navigation [ref=e7]:
+        - link "Spectator" [ref=e8] [cursor=pointer]:
+          - /url: /spectator
+    - generic [ref=e25]:
+      - generic [ref=e26]:
+        - text: Timer
+        - strong [ref=e27]: 06:00
+      - generic [ref=e28]:
+        - text: Health
+        - strong [ref=e29]: "100"
+      - generic [ref=e30]:
+        - text: Papers
+        - strong [ref=e31]: "0"
+      - generic [ref=e32]:
+        - text: Level
+        - strong [ref=e33]: T0
+      - generic [ref=e34]:
+        - text: Status
+        - strong [ref=e35]: Connected. Waiting for the host to start the match.
+    - complementary [ref=e40]:
+      - generic [ref=e41]:
+        - paragraph [ref=e42]: Actions
+        - generic [ref=e43]:
+          - button "Dash" [ref=e44] [cursor=pointer]
+          - button "Hold Revive" [ref=e45] [cursor=pointer]
+          - button "Find Chest" [disabled] [ref=e46] [cursor=pointer]
+      - generic [ref=e47]:
+        - generic [ref=e49]: Move
+        - generic [ref=e51]: Aim
+  - button "Open Next.js Dev Tools" [ref=e20] [cursor=pointer]:
+    - img [ref=e21]
+  - alert [ref=e24]

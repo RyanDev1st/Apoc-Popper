@@ -1,0 +1,50 @@
+[
+  {
+    "id": "custom-1",
+    "question": "Replace this question with your presentation deck. Which option is currently marked as correct?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correctOptionId": 1
+  },
+  {
+    "id": "custom-2",
+    "question": "This starter deck is safe to edit. Which field controls the correct answer?",
+    "options": ["question", "correctOptionId", "options", "id"],
+    "correctOptionId": 1
+  },
+  {
+    "id": "custom-3",
+    "question": "How many options should each question have in this game?",
+    "options": ["2", "3", "4", "5"],
+    "correctOptionId": 2
+  },
+  {
+    "id": "custom-4",
+    "question": "What is the exact match duration in Quiz Survivors?",
+    "options": ["4 minutes", "5 minutes", "6 minutes", "7 minutes"],
+    "correctOptionId": 2
+  },
+  {
+    "id": "custom-5",
+    "question": "Which route is reserved for the large spectator arena view?",
+    "options": ["/host/[token]", "/spectator", "/watch", "/arena"],
+    "correctOptionId": 1
+  },
+  {
+    "id": "custom-6",
+    "question": "What item is used to answer additional chest questions after the free first question?",
+    "options": ["Bandages", "Fuel Cells", "Question Papers", "Coins"],
+    "correctOptionId": 2
+  },
+  {
+    "id": "custom-7",
+    "question": "Which catastrophe appears at wave 4 and wave 5?",
+    "options": ["Lightning storm", "Poison Gas Clouds", "Blizzard", "Sand trap"],
+    "correctOptionId": 1
+  },
+  {
+    "id": "custom-8",
+    "question": "What happens inside the chest fire circle while the chest is open?",
+    "options": ["Players burn slowly", "Zombies move faster", "Humans are safe and invulnerable", "Loot is disabled"],
+    "correctOptionId": 2
+  }
+]

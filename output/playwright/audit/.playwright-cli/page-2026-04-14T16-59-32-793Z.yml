@@ -1,0 +1,13 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - paragraph [ref=e5]: Quiz Survivors
+      - strong [ref=e6]: One room. Six minutes. Pixel chaos.
+    - navigation [ref=e7]:
+      - link "Spectator" [ref=e8] [cursor=pointer]:
+        - /url: /spectator
+  - generic [ref=e10]:
+    - paragraph [ref=e11]: Join Match
+    - heading "Pick a name and jump in." [level=2] [ref=e12]
+    - textbox "Display name" [ref=e13]: Runner
+    - button "Enter Arena" [ref=e14] [cursor=pointer]
