@@ -1,31 +1,22 @@
 import type { Metadata } from "next";
-import { Press_Start_2P, VT323 } from "next/font/google";
+import { Press_Start_2P } from "next/font/google";
 import "./globals.css";
 
-const displayFont = Press_Start_2P({
-  variable: "--font-display",
-  subsets: ["latin"],
+const pixelFont = Press_Start_2P({
   weight: "400",
-});
-
-const bodyFont = VT323({
-  variable: "--font-body",
   subsets: ["latin"],
-  weight: "400",
+  variable: "--font-pixel",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "Quiz Survivors",
-  description: "Retro multiplayer zombie survival with timed chest quizzes.",
+  description: "6-minute arena quiz survival game",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${displayFont.variable} ${bodyFont.variable}`}>
+    <html lang="en" className={pixelFont.variable}>
       <body>{children}</body>
     </html>
   );

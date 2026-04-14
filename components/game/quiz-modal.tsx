@@ -1,57 +1,47 @@
 "use client";
 
-import type { Question } from "@/lib/game/types";
+import type { Question } from "@/lib/game/questions";
 import type { QuizSession } from "@/lib/game/quiz";
 
 type QuizModalProps = {
   open: boolean;
   questions: Question[];
   session: QuizSession | null;
-  onAnswer: (index: number) => void;
+  onAnswer: (optionId: number) => void;
   onDone: () => void;
 };
 
-export function QuizModal({ open, questions, session, onAnswer, onDone }: QuizModalProps) {
-  if (!open || !session) {
-    return null;
-  }
+const LABELS = ["A", "B", "C", "D"];
 
-  const currentQuestion = questions[session.questionIndex];
-  const tier = session.correctAnswers >= 5 ? 3 : session.correctAnswers >= 3 ? 2 : session.correctAnswers >= 1 ? 1 : 0;
-  const locked = !currentQuestion;
+export function QuizModal({ open, questions, session, onAnswer, onDone }: QuizModalProps) {
+  if (!open || !session) return null;
+  const q = questions[session.questionIndex];
+  if (!q) {
+    return (
+      <div className="modal-backdrop">
+        <div className="modal-panel panel">
+          <p className="modal-title">CHEST CLAIMED</p>
+          <p className="modal-meta">CORRECT: {session.correctAnswers} / {session.answersGiven}</p>
+          <button className="btn btn-primary" onClick={onDone}>CLOSE</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="modal-backdrop">
-      <div className="modal-panel compact-modal">
-        <p className="eyebrow">Chest</p>
-        <h2>{currentQuestion?.question ?? "Lock loot"}</h2>
-        <div className="meter-strip">
-          <div className="meter">
-            <span>Tier</span>
-            <strong>{tier}</strong>
-          </div>
-          <div className="meter">
-            <span>Correct</span>
-            <strong>{session.correctAnswers}</strong>
-          </div>
-          <div className="meter">
-            <span>Papers</span>
-            <strong>{session.papersRemaining}</strong>
-          </div>
-        </div>
-        {!locked ? <div className="answers-grid">
-          {currentQuestion?.options.map((option, index) => (
-            <button key={option} className="answer-button" onClick={() => onAnswer(index)}>
-              <span>{String.fromCharCode(65 + index)}</span>
-              {option}
+      <div className="modal-panel panel">
+        <p className="modal-title">CHEST QUESTION {session.questionIndex + 1}</p>
+        <p className="modal-question">{q.question}</p>
+        <div className="answers-grid">
+          {q.options.map((opt, i) => (
+            <button key={i} className="answer-btn panel" onClick={() => onAnswer(i)}>
+              <span>{LABELS[i]}</span>{opt}
             </button>
           ))}
-        </div> : null}
-        <button className="close-button" onClick={onDone}>
-          Equip Loot
-        </button>
+        </div>
+        <p className="modal-meta">CORRECT: {session.correctAnswers} | PAPERS: {session.papersRemaining}</p>
       </div>
     </div>
   );
 }
-

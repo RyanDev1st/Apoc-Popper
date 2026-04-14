@@ -2,156 +2,249 @@
 
 import { useEffect, useRef } from "react";
 import { ARENA_SIZE, SAFE_RING_RADIUS } from "@/lib/game/config";
-import type { WorldState } from "@/hooks/use-quiz-survivors-game";
+import type { WorldState } from "@/hooks/use-game";
 
 type PhaserCanvasProps = {
   world: WorldState;
   viewMode: "player" | "spectator";
-  selectedChestId?: string | null;
   onMove?: (x: number, y: number) => void;
   onAim?: (x: number, y: number, firing?: boolean) => void;
   onStopAim?: () => void;
 };
 
-type SceneSnapshot = {
+type SceneRefs = {
   world: WorldState;
-  viewMode: PhaserCanvasProps["viewMode"];
-  selectedChestId: string | null;
+  viewMode: "player" | "spectator";
+  onMove: (x: number, y: number) => void;
+  onAim: (x: number, y: number, firing?: boolean) => void;
+  onStopAim: () => void;
 };
 
-type SceneCallbacks = {
-  onMove: NonNullable<PhaserCanvasProps["onMove"]>;
-  onAim: NonNullable<PhaserCanvasProps["onAim"]>;
-  onStopAim: NonNullable<PhaserCanvasProps["onStopAim"]>;
-};
+const NOOP = () => {};
 
-const NOOP_MOVE: SceneCallbacks["onMove"] = () => {};
-const NOOP_AIM: SceneCallbacks["onAim"] = () => {};
-const NOOP_STOP: SceneCallbacks["onStopAim"] = () => {};
-
-export function PhaserCanvas({
-  world,
-  viewMode,
-  selectedChestId = null,
-  onMove,
-  onAim,
-  onStopAim,
-}: PhaserCanvasProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const sceneRef = useRef<SceneSnapshot>({ world, viewMode, selectedChestId });
-  const callbacksRef = useRef<SceneCallbacks>({
-    onMove: onMove ?? NOOP_MOVE,
-    onAim: onAim ?? NOOP_AIM,
-    onStopAim: onStopAim ?? NOOP_STOP,
+export function PhaserCanvas({ world, viewMode, onMove, onAim, onStopAim }: PhaserCanvasProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const refsRef = useRef<SceneRefs>({
+    world, viewMode,
+    onMove: onMove ?? NOOP,
+    onAim: onAim ?? NOOP,
+    onStopAim: onStopAim ?? NOOP,
   });
 
   useEffect(() => {
-    sceneRef.current = { world, viewMode, selectedChestId };
-  }, [selectedChestId, viewMode, world]);
-
-  useEffect(() => {
-    callbacksRef.current = {
-      onMove: onMove ?? NOOP_MOVE,
-      onAim: onAim ?? NOOP_AIM,
-      onStopAim: onStopAim ?? NOOP_STOP,
-    };
-  }, [onAim, onMove, onStopAim]);
+    refsRef.current = { world, viewMode, onMove: onMove ?? NOOP, onAim: onAim ?? NOOP, onStopAim: onStopAim ?? NOOP };
+  });
 
   useEffect(() => {
     let disposed = false;
-    let resizeObserver: ResizeObserver | null = null;
     let game: import("phaser").Game | null = null;
+    let resizeObserver: ResizeObserver | null = null;
 
     async function boot() {
       const Phaser = await import("phaser");
+      if (disposed || !containerRef.current) return;
 
-      if (!containerRef.current || disposed) {
-        return;
-      }
+      // entity pools
+      type ZombieObj = { rect: import("phaser").GameObjects.Rectangle; id: string };
+      type BulletObj = { rect: import("phaser").GameObjects.Rectangle; id: string };
+      type MeteorObj = { circle: import("phaser").GameObjects.Arc; id: string };
+      type GasObj = { circle: import("phaser").GameObjects.Arc; id: string };
+      type ChestObj = { body: import("phaser").GameObjects.Rectangle; ring: import("phaser").GameObjects.Arc; id: string };
+      type PlayerObj = { rect: import("phaser").GameObjects.Rectangle; id: string };
 
       class ArenaScene extends Phaser.Scene {
-        graphics!: Phaser.GameObjects.Graphics;
         keys!: Record<string, Phaser.Input.Keyboard.Key>;
+        bg!: import("phaser").GameObjects.Rectangle;
+        zombiePool: ZombieObj[] = [];
+        bulletPool: BulletObj[] = [];
+        meteorPool: MeteorObj[] = [];
+        gasPool: GasObj[] = [];
+        chestPool: ChestObj[] = [];
+        remotePlayers: PlayerObj[] = [];
+        localPlayerRect!: import("phaser").GameObjects.Rectangle;
 
         create() {
-          this.graphics = this.add.graphics();
           this.cameras.main.setBounds(0, 0, ARENA_SIZE, ARENA_SIZE);
           this.cameras.main.roundPixels = true;
-          const keyboard = this.input.keyboard;
-          this.keys = keyboard ? (keyboard.addKeys("W,A,S,D") as Record<string, Phaser.Input.Keyboard.Key>) : ({} as Record<string, Phaser.Input.Keyboard.Key>);
 
+          // arena floor
+          this.add.rectangle(ARENA_SIZE / 2, ARENA_SIZE / 2, ARENA_SIZE, ARENA_SIZE, 0x081108);
+          // grid lines via graphics (static, created once)
+          const grid = this.add.graphics();
+          grid.lineStyle(1, 0x0f220f, 0.6);
+          for (let p = 96; p < ARENA_SIZE; p += 96) {
+            grid.lineBetween(p, 0, p, ARENA_SIZE);
+            grid.lineBetween(0, p, ARENA_SIZE, p);
+          }
+          // arena border
+          const border = this.add.graphics();
+          border.lineStyle(6, 0x1a4a20, 1);
+          border.strokeRect(36, 36, ARENA_SIZE - 72, ARENA_SIZE - 72);
+
+          // local player (created once, updated via setPosition)
+          this.localPlayerRect = this.add.rectangle(0, 0, 30, 30, 0xf6f2d2).setDepth(10).setVisible(false);
+
+          // keyboard
+          const kb = this.input.keyboard;
+          this.keys = kb ? (kb.addKeys("W,A,S,D,SPACE") as Record<string, Phaser.Input.Keyboard.Key>) : {};
+
+          // pointer events
           this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
-            const localPlayer = sceneRef.current.world.localPlayer;
-            if (!localPlayer || sceneRef.current.viewMode !== "player") {
-              return;
-            }
-
-            callbacksRef.current.onAim(pointer.worldX - localPlayer.x, pointer.worldY - localPlayer.y, pointer.isDown || pointer.primaryDown);
+            const { world: w, viewMode: vm } = refsRef.current;
+            if (vm !== "player" || !w.localPlayer) return;
+            refsRef.current.onAim(
+              pointer.worldX - w.localPlayer.x,
+              pointer.worldY - w.localPlayer.y,
+              pointer.primaryDown,
+            );
           });
 
           this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-            const localPlayer = sceneRef.current.world.localPlayer;
-            if (!localPlayer || sceneRef.current.viewMode !== "player") {
-              return;
-            }
-
-            callbacksRef.current.onAim(pointer.worldX - localPlayer.x, pointer.worldY - localPlayer.y, true);
+            const { world: w, viewMode: vm } = refsRef.current;
+            if (vm !== "player" || !w.localPlayer) return;
+            refsRef.current.onAim(
+              pointer.worldX - w.localPlayer.x,
+              pointer.worldY - w.localPlayer.y,
+              true,
+            );
           });
 
-          this.input.on("pointerup", () => {
-            callbacksRef.current.onStopAim();
-          });
+          this.input.on("pointerup", () => refsRef.current.onStopAim());
+
+          // hide default cursor
+          this.input.setDefaultCursor("crosshair");
         }
 
         update() {
-          if (sceneRef.current.viewMode === "player") {
-            const moveX = (this.keys?.D?.isDown ? 1 : 0) - (this.keys?.A?.isDown ? 1 : 0);
-            const moveY = (this.keys?.S?.isDown ? 1 : 0) - (this.keys?.W?.isDown ? 1 : 0);
-            callbacksRef.current.onMove(moveX, moveY);
+          const { world: w, viewMode: vm } = refsRef.current;
+
+          // WASD movement
+          if (vm === "player") {
+            const mx = (this.keys.D?.isDown ? 1 : 0) - (this.keys.A?.isDown ? 1 : 0);
+            const my = (this.keys.S?.isDown ? 1 : 0) - (this.keys.W?.isDown ? 1 : 0);
+            refsRef.current.onMove(mx, my);
           }
 
-          drawArena(this, this.graphics, sceneRef.current);
-          syncCamera(this, sceneRef.current);
+          // sync local player
+          if (w.localPlayer) {
+            this.localPlayerRect.setPosition(w.localPlayer.x, w.localPlayer.y).setVisible(true);
+            this.localPlayerRect.setFillStyle(w.localPlayer.downed ? 0xff4e5c : 0xf6f2d2);
+          } else {
+            this.localPlayerRect.setVisible(false);
+          }
+
+          // remote players
+          syncPool(
+            this, this.remotePlayers, w.remotePlayers,
+            (p) => {
+              const r = this.add.rectangle(p.x, p.y, 30, 30, 0x6bb7ff).setDepth(9);
+              return { rect: r, id: p.uid };
+            },
+            (obj, p) => {
+              obj.rect.setPosition(p.x, p.y).setFillStyle(p.downed ? 0xff6e63 : 0x6bb7ff).setAlpha(p.spectating ? 0.28 : 1);
+            },
+            (obj) => obj.rect.destroy(),
+            (obj, p) => obj.id === p.uid,
+          );
+
+          // zombies
+          syncPool(
+            this, this.zombiePool, w.zombies,
+            (z) => {
+              const r = this.add.rectangle(z.x, z.y, 24, 24, 0x7cd44e).setDepth(5);
+              return { rect: r, id: z.id };
+            },
+            (obj, z) => {
+              const flash = Date.now() < z.hitFlashUntil;
+              obj.rect.setPosition(z.x, z.y).setFillStyle(flash ? 0xffffff : 0x7cd44e);
+            },
+            (obj) => obj.rect.destroy(),
+            (obj, z) => obj.id === z.id,
+          );
+
+          // bullets
+          syncPool(
+            this, this.bulletPool, w.bullets,
+            (b) => ({ rect: this.add.rectangle(b.x, b.y, 8, 8, 0xfff199).setDepth(8), id: b.id }),
+            (obj, b) => obj.rect.setPosition(b.x, b.y),
+            (obj) => obj.rect.destroy(),
+            (obj, b) => obj.id === b.id,
+          );
+
+          // meteors
+          syncPool(
+            this, this.meteorPool, w.meteors,
+            (m) => ({ circle: this.add.arc(m.x, m.y, m.radius, 0, 360, false, 0xff7d3c, 0.3).setDepth(3), id: m.id }),
+            (obj, m) => obj.circle.setPosition(m.x, m.y),
+            (obj) => obj.circle.destroy(),
+            (obj, m) => obj.id === m.id,
+          );
+
+          // gas clouds
+          syncPool(
+            this, this.gasPool, w.gasClouds,
+            (g) => ({ circle: this.add.arc(g.x, g.y, g.radius, 0, 360, false, 0x76cf64, 0.18).setDepth(2), id: g.id }),
+            (obj, g) => obj.circle.setPosition(g.x, g.y),
+            (obj) => obj.circle.destroy(),
+            (obj, g) => obj.id === g.id,
+          );
+
+          // chests
+          syncPool(
+            this, this.chestPool, w.chests,
+            (c) => ({
+              ring: this.add.arc(c.x, c.y, SAFE_RING_RADIUS, 0, 360, false, 0xff9a57, 0).setDepth(1).setStrokeStyle(4, 0xff9a57, 0.7),
+              body: this.add.rectangle(c.x, c.y, 36, 36, c.active ? 0xf9c15d : 0x6d5635).setDepth(4),
+              id: c.id,
+            }),
+            (obj, c) => {
+              obj.body.setPosition(c.x, c.y).setFillStyle(c.active ? 0xf9c15d : 0x6d5635).setAlpha(c.active ? 1 : 0.28);
+              obj.ring.setPosition(c.x, c.y).setAlpha(c.active ? 1 : 0);
+            },
+            (obj) => { obj.body.destroy(); obj.ring.destroy(); },
+            (obj, c) => obj.id === c.id,
+          );
+
+          // camera
+          const camera = this.cameras.main;
+          if (vm === "player" && w.localPlayer) {
+            camera.centerOn(w.localPlayer.x, w.localPlayer.y);
+            camera.setZoom(Math.max(0.72, Math.min(this.scale.width / 620, this.scale.height / 520)));
+          } else {
+            camera.centerOn(ARENA_SIZE / 2, ARENA_SIZE / 2);
+            camera.setZoom(Math.max(0.2, Math.min(this.scale.width / (ARENA_SIZE + 160), this.scale.height / (ARENA_SIZE + 160))));
+          }
         }
       }
 
-      const bounds = containerRef.current.getBoundingClientRect();
+      const bounds = containerRef.current!.getBoundingClientRect();
       game = new Phaser.Game({
         type: Phaser.CANVAS,
-        parent: containerRef.current,
+        parent: containerRef.current!,
         width: Math.max(320, Math.floor(bounds.width)),
         height: Math.max(320, Math.floor(bounds.height)),
         pixelArt: true,
         transparent: true,
-        backgroundColor: "#050804",
+        backgroundColor: "#030508",
         scene: ArenaScene,
-        scale: {
-          mode: Phaser.Scale.RESIZE,
-          autoCenter: Phaser.Scale.NO_CENTER,
-        },
+        scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.NO_CENTER },
       });
 
       resizeObserver = new ResizeObserver((entries) => {
-        const entry = entries[0];
-        if (!entry || !game) {
-          return;
-        }
-
-        const width = Math.max(320, Math.floor(entry.contentRect.width));
-        const height = Math.max(320, Math.floor(entry.contentRect.height));
-        game.scale.resize(width, height);
+        const e = entries[0];
+        if (!e || !game) return;
+        game.scale.resize(
+          Math.max(320, Math.floor(e.contentRect.width)),
+          Math.max(320, Math.floor(e.contentRect.height)),
+        );
       });
-
-      resizeObserver.observe(containerRef.current);
+      resizeObserver.observe(containerRef.current!);
     }
 
     boot();
-
     return () => {
       disposed = true;
       resizeObserver?.disconnect();
-      callbacksRef.current.onMove(0, 0);
-      callbacksRef.current.onStopAim();
       game?.destroy(true);
     };
   }, []);
@@ -159,114 +252,30 @@ export function PhaserCanvas({
   return <div ref={containerRef} className="phaser-shell" />;
 }
 
-function drawArena(
-  scene: import("phaser").Scene,
-  graphics: import("phaser").GameObjects.Graphics,
-  snapshot: SceneSnapshot,
+// Generic pool sync: update existing, create new, destroy removed
+function syncPool<T extends object, D>(
+  _scene: import("phaser").Scene,
+  pool: T[],
+  data: D[],
+  create: (d: D) => T,
+  update: (obj: T, d: D) => void,
+  destroy: (obj: T) => void,
+  match: (obj: T, d: D) => boolean,
 ) {
-  const { world, selectedChestId } = snapshot;
-  const localPlayer = world.localPlayer;
-  graphics.clear();
-
-  graphics.fillStyle(0x081108, 1);
-  graphics.fillRect(0, 0, ARENA_SIZE, ARENA_SIZE);
-
-  for (let position = 96; position < ARENA_SIZE; position += 96) {
-    graphics.lineStyle(2, 0x112411, 1);
-    graphics.lineBetween(position, 0, position, ARENA_SIZE);
-    graphics.lineBetween(0, position, ARENA_SIZE, position);
+  // destroy removed
+  for (let i = pool.length - 1; i >= 0; i--) {
+    if (!data.some((d) => match(pool[i]!, d))) {
+      destroy(pool[i]!);
+      pool.splice(i, 1);
+    }
   }
-
-  graphics.fillStyle(0x122715, 1);
-  graphics.fillRect(36, 36, ARENA_SIZE - 72, ARENA_SIZE - 72);
-  graphics.lineStyle(8, 0x86c56f, 1);
-  graphics.strokeRect(36, 36, ARENA_SIZE - 72, ARENA_SIZE - 72);
-
-  world.gasClouds.forEach((cloud) => {
-    graphics.fillStyle(0x76cf64, 0.18);
-    graphics.fillCircle(cloud.x, cloud.y, cloud.radius);
-    graphics.lineStyle(4, 0x99ef7e, 0.4);
-    graphics.strokeCircle(cloud.x, cloud.y, cloud.radius - 10);
-  });
-
-  world.meteors.forEach((meteor) => {
-    graphics.fillStyle(0xff7d3c, 0.28);
-    graphics.fillCircle(meteor.x, meteor.y, meteor.radius);
-    graphics.fillStyle(0xffd073, 0.4);
-    graphics.fillRect(meteor.x - 10, meteor.y - 10, 20, 20);
-  });
-
-  world.chests.forEach((chest) => {
-    const isSelected = selectedChestId === chest.id;
-    graphics.lineStyle(isSelected ? 8 : 5, isSelected ? 0xffef8d : 0xff9a57, chest.active ? 0.9 : 0.24);
-    graphics.strokeCircle(chest.x, chest.y, SAFE_RING_RADIUS);
-    graphics.fillStyle(chest.active ? 0xf9c15d : 0x6d5635, 1);
-    graphics.fillRect(chest.x - 18, chest.y - 18, 36, 36);
-    graphics.fillStyle(0x3e2715, 1);
-    graphics.fillRect(chest.x - 18, chest.y - 6, 36, 12);
-  });
-
-  world.zombies.forEach((zombie) => {
-    graphics.fillStyle(0x7cd44e, 1);
-    graphics.fillRect(zombie.x - 12, zombie.y - 12, 24, 24);
-    graphics.fillStyle(0x1d2f10, 1);
-    graphics.fillRect(zombie.x - 8, zombie.y - 5, 5, 5);
-    graphics.fillRect(zombie.x + 3, zombie.y - 5, 5, 5);
-  });
-
-  world.bullets.forEach((bullet) => {
-    graphics.fillStyle(0xfff199, 1);
-    graphics.fillRect(bullet.x - 4, bullet.y - 4, 8, 8);
-  });
-
-  world.remotePlayers.forEach((player) => {
-    drawPlayer(graphics, player.x, player.y, player.downed ? 0xff6e63 : 0x6bb7ff, player.spectating ? 0.28 : 1);
-  });
-
-  if (localPlayer) {
-    drawPlayer(graphics, localPlayer.x, localPlayer.y, localPlayer.downed ? 0xff4e5c : 0xf6f2d2, 1);
+  // create / update
+  for (const d of data) {
+    const existing = pool.find((obj) => match(obj, d));
+    if (existing) {
+      update(existing, d);
+    } else {
+      pool.push(create(d));
+    }
   }
-
-  if (snapshot.viewMode === "spectator") {
-    graphics.fillStyle(0x050804, 0.38);
-    graphics.fillRect(0, 0, ARENA_SIZE, 28);
-    graphics.fillRect(0, ARENA_SIZE - 28, ARENA_SIZE, 28);
-    graphics.fillRect(0, 0, 28, ARENA_SIZE);
-    graphics.fillRect(ARENA_SIZE - 28, 0, 28, ARENA_SIZE);
-  }
-
-  scene.game.canvas.style.imageRendering = "pixelated";
-}
-
-function drawPlayer(
-  graphics: import("phaser").GameObjects.Graphics,
-  x: number,
-  y: number,
-  color: number,
-  alpha: number,
-) {
-  graphics.fillStyle(color, alpha);
-  graphics.fillRect(x - 15, y - 15, 30, 30);
-  graphics.fillStyle(0x1e1710, alpha);
-  graphics.fillRect(x - 8, y - 4, 5, 5);
-  graphics.fillRect(x + 3, y - 4, 5, 5);
-}
-
-function syncCamera(scene: import("phaser").Scene, snapshot: SceneSnapshot) {
-  const camera = scene.cameras.main;
-
-  if (snapshot.viewMode === "player" && snapshot.world.localPlayer) {
-    const { localPlayer } = snapshot.world;
-    camera.centerOn(localPlayer.x, localPlayer.y);
-    camera.setZoom(Math.max(0.72, Math.min(scene.scale.width / 620, scene.scale.height / 520)));
-    return;
-  }
-
-  camera.centerOn(ARENA_SIZE / 2, ARENA_SIZE / 2);
-  camera.setZoom(
-    Math.max(
-      0.2,
-      Math.min(scene.scale.width / (ARENA_SIZE + 160), scene.scale.height / (ARENA_SIZE + 160)),
-    ),
-  );
 }

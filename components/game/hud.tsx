@@ -1,44 +1,48 @@
 "use client";
 
-import type { PlayerSnapshot } from "@/lib/game/types";
+import type { WorldState } from "@/hooks/use-game";
 
 type HudProps = {
-  player: PlayerSnapshot | null;
-  elapsedMs: number;
-  isLive: boolean;
+  world: WorldState;
   statusMessage: string;
 };
 
-export function Hud({ player, elapsedMs, isLive, statusMessage }: HudProps) {
-  const timeLeft = Math.max(0, 360 - Math.floor(elapsedMs / 1000));
-  const minutes = Math.floor(timeLeft / 60)
-    .toString()
-    .padStart(2, "0");
-  const seconds = (timeLeft % 60).toString().padStart(2, "0");
+export function Hud({ world, statusMessage }: HudProps) {
+  const player = world.localPlayer;
+  const elapsed = world.elapsedMs;
+  const timeLeft = Math.max(0, 360 - Math.floor(elapsed / 1000));
+  const mm = Math.floor(timeLeft / 60).toString().padStart(2, "0");
+  const ss = (timeLeft % 60).toString().padStart(2, "0");
+  const hpPct = player ? Math.max(0, Math.min(100, (player.hp / Math.max(1, player.maxHp)) * 100)) : 0;
 
   return (
-    <section className="hud-shell">
-      <div className="hud-card">
-        <span className="hud-label">Timer</span>
-        <strong className="hud-value">{minutes}:{seconds}</strong>
+    <div className="top-hud">
+      <div className="hud-bar">
+        {player && (
+          <div className="hud-tile panel">
+            <span className="hud-label">HP</span>
+            <div className="hp-bar-track"><div className="hp-bar-fill" style={{ width: `${hpPct}%` }} /></div>
+            <span className="hud-value">{Math.max(0, Math.round(player.hp))}</span>
+          </div>
+        )}
+        <div className="hud-tile panel">
+          <span className="hud-label">TIME</span>
+          <span className="hud-value accent">{mm}:{ss}</span>
+        </div>
+        {player && (
+          <>
+            <div className="hud-tile panel">
+              <span className="hud-label">PAPER</span>
+              <span className="hud-value positive">{player.papers}</span>
+            </div>
+            <div className="hud-tile panel">
+              <span className="hud-label">TIER</span>
+              <span className="hud-value accent">T{player.lootTier}</span>
+            </div>
+          </>
+        )}
       </div>
-      <div className="hud-card">
-        <span className="hud-label">Health</span>
-        <strong className="hud-value">{Math.max(0, Math.round(player?.hp ?? 100))}</strong>
-      </div>
-      <div className="hud-card">
-        <span className="hud-label">Papers</span>
-        <strong className="hud-value">{player?.papers ?? 0}</strong>
-      </div>
-      <div className="hud-card">
-        <span className="hud-label">Level</span>
-        <strong className="hud-value">T{player?.lootTier ?? 0}</strong>
-      </div>
-      <div className="hud-card hud-status">
-        <span className="hud-label">{isLive ? "Live" : "Status"}</span>
-        <strong className="hud-value hud-message">{statusMessage}</strong>
-      </div>
-    </section>
+      <div className="status-tag panel">{statusMessage}</div>
+    </div>
   );
 }
-

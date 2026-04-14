@@ -1,6 +1,2 @@
-import { GameShell } from "@/components/game/game-shell";
-
-export default function HomePage() {
-  return <GameShell />;
-}
-
+import { redirect } from "next/navigation";
+export default function Home() { redirect("/play"); }

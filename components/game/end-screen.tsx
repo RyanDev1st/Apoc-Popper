@@ -9,45 +9,35 @@ type EndScreenProps = {
   onSpin: () => void;
 };
 
-export function EndScreen({ open, result, wheelSpun, onSpin }: EndScreenProps) {
-  if (!open || !result) {
-    return null;
-  }
+const REWARDS = ["MILK TEA", "CANDIES", "MYSTERY BOX", "BONUS ROUND"];
 
-  const canSpin = result.survived && !wheelSpun;
+export function EndScreen({ open, result, wheelSpun, onSpin }: EndScreenProps) {
+  if (!open) return null;
+
+  const prize = wheelSpun && result
+    ? REWARDS[result.answeredCount % REWARDS.length]
+    : null;
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-panel end-panel compact-modal">
-        <p className="eyebrow">Result</p>
-        <h2>{result.survived ? "Made it to 6:00" : "Run over"}</h2>
-        <div className="meter-strip">
-          <div className="meter">
-            <span>Spin</span>
-            <strong>{result.fairSpin ? "open" : "closed"}</strong>
-          </div>
-          <div className="meter">
-            <span>Answers</span>
-            <strong>{result.answeredCount}</strong>
-          </div>
-          <div className="meter">
-            <span>Reward</span>
-            <strong>{result.reward}</strong>
-          </div>
+    <div className="end-overlay">
+      <div className="end-card panel">
+        <p className="end-title">{result?.survived ? "SURVIVED" : "DOWNED"}</p>
+        {result && (
+          <>
+            <div className="end-stat"><span>ANSWERED</span><span>{result.answeredCount}</span></div>
+            <div className="end-stat"><span>STATUS</span><span>{result.survived ? "ALIVE" : "DOWNED"}</span></div>
+          </>
+        )}
+        <div className="wheel-card panel">
+          {!wheelSpun ? (
+            <>
+              <p className="reward-pool">SPIN FOR REWARD</p>
+              <button className="btn btn-primary" onClick={onSpin}>SPIN WHEEL</button>
+            </>
+          ) : (
+            <p className="reward-pool">REWARD: {prize}</p>
+          )}
         </div>
-        <div className="wheel-card">
-          <div className="fake-pool">Lucky wheel</div>
-          <div className="reward-strip">
-            <span>Top prize</span>
-            <strong>Milk Tea x2</strong>
-          </div>
-        </div>
-        {canSpin ? (
-          <button className="answer-button" onClick={onSpin}>
-            Spin
-          </button>
-        ) : null}
-        {!result.survived && result.answeredCount > 0 ? <p className="consolation-copy">Candies unlocked.</p> : null}
       </div>
     </div>
   );
