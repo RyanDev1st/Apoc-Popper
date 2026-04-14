@@ -1,31 +1,34 @@
 # Quiz Survivors Memory
 
-Last updated: 2026-04-14
+Last updated: 2026-04-15
 
 ## Current Build
-- Root repo is the real workspace.
-- `.worktrees` is no longer part of the active flow.
-- The feature branch prototype was folded into the root implementation and then updated.
+- Full refactor complete. Firebase removed, Supabase Realtime Broadcast in.
+- Single `hooks/use-game.ts` replaces old `use-quiz-survivors-game.ts`.
+- Pure game modules: `lib/game/weapon.ts`, `lib/game/mob.ts`, `lib/game/loop.ts`.
+- Phaser canvas uses persistent GameObjects (not per-frame Graphics).
+- Dark blue pixel design system (globals.css + Press Start 2P).
+- Host dashboard at `/host/[token]` — sidebar + timeline bar + chest drawer.
+- Spectator at `/spectator` — arena + player chips overlay.
 
 ## Implemented
-- `/play`, `/spectator`, and `/host/[token]`
-- player full-screen arena shell
-- spectator full-screen arena with overlay rail and live answer session cards
-- host-token gating
-- deterministic wave timeline
-- chest quiz flow with free first question and paper-gated extra questions
-- firing slowdown + dash escape
-- zombie target lock from spawn
-- starter question bank in the new JSON shape
-- room snapshot normalization for stable player/feed ids
-- stable Phaser boot lifecycle without remount spam
+- `/play`, `/spectator`, `/host/[token]`
+- Supabase Realtime Broadcast sync (10 Hz player snapshots)
+- Pure game loop: movement, dash, bullets, zombie AI, collision
+- Zombie cap at 40, separation force, chest deflection
+- Chest quiz flow — free first Q, paper-gated extras
+- WASD + mouse aim/fire (desktop) + virtual joysticks (mobile)
+- Deterministic wave/chest/catastrophe timeline
+- Host controls: start, reset (token-gated)
+- Host chest drawer shows live player answers
 
-## Verified
-- `rtk npm test`
-- `rtk lint`
-- `npm run build`
+## Verified (2026-04-15)
+- 37 tests pass (`vitest run`)
+- 0 lint errors
+- 0 TypeScript errors in src
+- `next build` succeeds
 
 ## Notes
-- Build succeeds with Next.js 15.
+- Requires `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` for live multiplayer.
+- Without env vars: join button shows "LOADING", game won't connect — expected.
 - Host controls require `HOST_ACCESS_TOKEN`.
-- Firebase env values are required for shared-room play.
