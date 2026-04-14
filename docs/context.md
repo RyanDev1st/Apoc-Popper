@@ -3,27 +3,29 @@
 ## What This Repo Is
 - One-room presentation game.
 - Next.js 15 app shell.
-- Phaser 3 arena.
-- Firebase Realtime Database for shared room state.
+- Phaser 3 arena with persistent GameObjects.
+- Supabase Realtime Broadcast for shared room state.
 
 ## Main Routes
-- `/` player join + play shell
+- `/` redirect to /play
 - `/play` player join + play shell
-- `/spectator` read-only presenter view
-- `/host/[token]` presenter view with host controls when the token matches `HOST_ACCESS_TOKEN`
+- `/spectator` read-only presenter view with player chips overlay
+- `/host/[token]` host dashboard (sidebar + timeline bar + chest drawer)
 
 ## Match Shape
 - 6 minute hard cap
 - one shared room only
-- 2D top-down pixel look
-- mobile-first controls
+- 2D top-down pixel look (dark blue glass design system)
+- mobile-first controls (virtual joysticks + action dock)
 - public players, private host link
 
 ## Current Status
-- Root repo contains the active build.
-- Player and spectator views are now screen-first: the arena owns the viewport and controls float on top.
-- Room snapshots are normalized before render, so real Firebase ids stay stable across player cards, feed, and spectator lists.
-- Firebase env values are required to join or spectate a live shared room.
+- Full refactor complete (2026-04-15).
+- Firebase removed, Supabase Realtime Broadcast in place.
+- New pure game modules: weapon, mob, loop (all tested).
+- Single `use-game` hook replaces old `use-quiz-survivors-game`.
+- Phaser canvas uses persistent GameObjects (no per-frame Graphics redraw).
+- Host dashboard: player sidebar always visible, timeline bar always visible, chest drawer on click.
 
 ## Content Input
 - Question bank file: `data/questions.json`
