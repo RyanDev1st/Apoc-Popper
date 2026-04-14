@@ -2,8 +2,11 @@
 Date: 2026-04-15
 
 ## Goal
-Production-ready presentation game. Full multiplayer via Firebase. Clean code. Sleek pixel UI.
+Production-ready presentation game. Full multiplayer via Supabase Realtime Broadcast. Clean code. Sleek pixel UI.
 2-day delivery. Functional + simple + coherent over clever.
+
+**Sync stack: Supabase Realtime Broadcast** (not Firebase).
+Ephemeral channels only — no DB schema, no migrations, no auth. One channel per room.
 
 ---
 
@@ -15,8 +18,9 @@ Production-ready presentation game. Full multiplayer via Firebase. Clean code. S
 - `lib/game/spawns.ts` — deterministic burst plan via seedrandom
 - `lib/game/drops.ts` — paper drop roll
 - `lib/game/ai.ts` — target resolution, move scale
-- `lib/firebase/client.ts` — Firebase bootstrap
 - `data/questions.json` — question bank
+
+**Removed:** `lib/firebase/` — replaced entirely by Supabase
 
 ---
 
@@ -142,14 +146,20 @@ Production-ready presentation game. Full multiplayer via Firebase. Clean code. S
 
 ---
 
-## Firebase Sync Boundary
-Synced (via `room.ts`):
-- room meta (status, startedAt, wave seeds, connectedCount)
-- player snapshots at ~10Hz
-- chest state
-- active answer sessions
-- feed items
-- results
+## Supabase Sync Boundary
+
+**Transport:** Supabase Realtime Broadcast on channel `quiz-survivors-room`.
+**Presence:** tracks connected players, handles disconnect automatically.
+
+Broadcast events:
+| Event | Sender | Payload |
+|---|---|---|
+| `meta` | host | `{ status, startedAt, wave seeds, connectedCount }` |
+| `player` | each player ~10Hz | player snapshot |
+| `chest` | host | chest state update |
+| `answer-session` | host | active quiz session |
+| `feed` | host | feed item |
+| `result` | each player | end result |
 
 Local only (never synced):
 - zombie positions
@@ -204,9 +214,9 @@ lib/
     weapon.ts         — NEW
     mob.ts            — NEW
     loop.ts           — NEW
-  firebase/
-    client.ts         — KEEP
-    room.ts           — NEW (extracted from hook)
+  supabase/
+    client.ts         — NEW (createClient, single channel)
+    room.ts           — NEW (broadcast send/subscribe helpers)
   host/
     access.ts         — KEEP
 
