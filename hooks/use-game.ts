@@ -6,18 +6,14 @@ import { canUseHostControls } from "@/lib/host/access";
 import {
   CHEST_LAYOUT,
   SAFE_RING_RADIUS,
-  clampToArena,
 } from "@/lib/game/config";
-import { rollPaperDrop } from "@/lib/game/drops";
-import { applyLootTier, createBaseCombatStats, getLootTierForCorrectAnswers } from "@/lib/game/loot";
+import { applyLootTier, createBaseCombatStats } from "@/lib/game/loot";
 import { getRandomQuestionSet, type Question } from "@/lib/game/questions";
-import { buildQuizSession, getQuizTier, submitQuizAnswer, isQuizOutOfQuestions, type QuizSession } from "@/lib/game/quiz";
+import { buildQuizSession, getQuizTier, submitQuizAnswer, type QuizSession } from "@/lib/game/quiz";
 import { createPlayerSnapshot, normalizeRoomSnapshot } from "@/lib/game/room";
 import { buildBurstPlan } from "@/lib/game/spawns";
 import {
-  CHEST_DURATION_MS,
   CHEST_EVENTS,
-  GAME_DURATION_MS,
   WAVE_EVENTS,
   CATASTROPHE_EVENTS,
   isGameOver,
@@ -25,7 +21,6 @@ import {
 import type {
   ActiveAnswerSession,
   ChestSnapshot,
-  FeedItem,
   MatchMeta,
   PlayerSnapshot,
   ResultEntry,
@@ -37,9 +32,7 @@ import {
   subscribeRoom,
   sendMeta,
   sendPlayer,
-  sendChest,
   sendSession,
-  sendFeed,
   sendResult,
   trackPresence,
 } from "@/lib/supabase/room";
@@ -85,7 +78,7 @@ export function useGame(mode: GameMode, options?: GameOptions) {
     open: false, questions: [], session: null, selectedChest: null,
   });
   const [statusMessage, setStatusMessage] = useState("Join.");
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
   const [wheelSpun, setWheelSpun] = useState(false);
   const [localResult, setLocalResult] = useState<ResultEntry | null>(null);
 
@@ -351,7 +344,7 @@ export function useGame(mode: GameMode, options?: GameOptions) {
   }
 
   // main tick
-  tickRef.current = (_ts: number) => {
+  tickRef.current = () => {
     const currentRoom = roomRef.current;
     const now = Date.now();
     const startedAt = currentRoom.meta.startedAt ?? 0;
