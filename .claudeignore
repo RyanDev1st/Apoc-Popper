@@ -1,5 +1,12 @@
+# Dependencies
 node_modules
+
+# Build folders
+.next
+
+# Claude-specific folders
+.claude-flow
+
+# Optional (you can remove these if you want Claude to see them)
 .gitignore
 .env.example
-.next
-C:\Users\admin\maze game\.claude-flow

@@ -18,6 +18,17 @@ export function HostShell({ hostAccessEnabled }: HostShellProps) {
     setOpenChestId((prev) => (prev === chestId ? null : chestId));
   }
 
+  if (!hostAccessEnabled) {
+    return (
+      <div style={{ display: "grid", placeItems: "center", height: "100vh", gap: 16 }}>
+        <div className="panel" style={{ padding: "28px 24px", display: "grid", gap: 12, textAlign: "center" }}>
+          <p style={{ color: "var(--danger)", fontSize: "0.8rem" }}>INVALID HOST TOKEN</p>
+          <p style={{ color: "var(--muted)", fontSize: "0.65rem" }}>Visit /host/[HOST_ACCESS_TOKEN] from your .env</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="host-layout">
       <div className="host-arena">

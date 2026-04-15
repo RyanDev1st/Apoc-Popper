@@ -1,4 +1,4 @@
-.worktrees/
+
 .next/
 node_modules/
 coverage/
@@ -7,3 +7,4 @@ firebase-debug.log
 .env.local
 .env*.local
 *.tsbuildinfo
+.env

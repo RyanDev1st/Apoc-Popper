@@ -26,6 +26,10 @@
 - Single `use-game` hook replaces old `use-quiz-survivors-game`.
 - Phaser canvas uses persistent GameObjects (no per-frame Graphics redraw).
 - Host dashboard: player sidebar always visible, timeline bar always visible, chest drawer on click.
+- Host START button works (token: abc-xyz-132 → /host/abc-xyz-132).
+- Players persist across host reload via Supabase Presence (full snapshot tracked).
+- Match meta persisted in localStorage — host reload recovers live/ended state.
+- Session 2 verified: 37 tests pass, 0 tsc errors, build succeeds.
 
 ## Content Input
 - Question bank file: `data/questions.json`

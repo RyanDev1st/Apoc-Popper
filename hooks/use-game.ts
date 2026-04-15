@@ -63,7 +63,23 @@ type GameMode = "player" | "spectator";
 type GameOptions = { hostAccessEnabled?: boolean };
 
 const PLAYER_SYNC_MS = 100;
+const META_STORAGE_KEY = "quiz-survivors-meta";
 const EMPTY_ROOM = normalizeRoomSnapshot(undefined);
+
+function loadPersistedMeta(): MatchMeta | null {
+  try {
+    if (typeof window === "undefined") return null;
+    const raw = window.localStorage.getItem(META_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as MatchMeta;
+  } catch { return null; }
+}
+
+function persistMeta(meta: MatchMeta) {
+  try {
+    window.localStorage.setItem(META_STORAGE_KEY, JSON.stringify(meta));
+  } catch { /* ignore */ }
+}
 
 export function useGame(mode: GameMode, options?: GameOptions) {
   const [uid] = useState(() => getAnonId());
@@ -113,7 +129,10 @@ export function useGame(mode: GameMode, options?: GameOptions) {
     channelRef.current = ch;
 
     subscribeRoom(ch, {
-      onMeta: (meta) => setRoom((prev) => ({ ...prev, meta })),
+      onMeta: (meta) => {
+        persistMeta(meta);
+        setRoom((prev) => ({ ...prev, meta }));
+      },
       onPlayer: (player) => setRoom((prev) => ({
         ...prev,
         players: { ...prev.players, [player.uid]: player },
@@ -134,6 +153,13 @@ export function useGame(mode: GameMode, options?: GameOptions) {
         ...prev,
         results: { ...prev.results, [result.uid]: result },
       })),
+      onPresenceSync: (players) => setRoom((prev) => ({
+        ...prev,
+        players: {
+          ...Object.fromEntries(players.map((p) => [p.uid, p])),
+          ...prev.players,
+        },
+      })),
       onPresenceLeave: (leftUid) => setRoom((prev) => {
         const next = { ...prev.players };
         delete next[leftUid];
@@ -142,8 +168,15 @@ export function useGame(mode: GameMode, options?: GameOptions) {
     });
 
     ch.subscribe((status) => {
-      if (status === "SUBSCRIBED" && mode === "player") {
-        trackPresence(ch, uid, playerName);
+      if (status === "SUBSCRIBED") {
+        // restore persisted meta so host reload doesn't reset state
+        const saved = loadPersistedMeta();
+        if (saved) {
+          setRoom((prev) => ({ ...prev, meta: saved }));
+        }
+        if (mode === "player" && localPlayerRef.current) {
+          trackPresence(ch, localPlayerRef.current);
+        }
       }
     });
 
@@ -170,7 +203,10 @@ export function useGame(mode: GameMode, options?: GameOptions) {
     localPlayerRef.current = snapshot;
     statsRef.current = createBaseCombatStats();
     const ch = channelRef.current;
-    if (ch) sendPlayer(ch, snapshot);
+    if (ch) {
+      sendPlayer(ch, snapshot);
+      trackPresence(ch, snapshot);
+    }
     setJoined(true);
   }, [uid, playerName]);
 
@@ -283,6 +319,7 @@ export function useGame(mode: GameMode, options?: GameOptions) {
       timelineVersion: Date.now(),
       connectedCount: Object.keys(roomRef.current.players).length,
     };
+    persistMeta(meta);
     const ch = channelRef.current;
     if (ch) sendMeta(ch, meta);
     setRoom((prev) => ({ ...prev, meta }));
@@ -291,6 +328,7 @@ export function useGame(mode: GameMode, options?: GameOptions) {
   const resetMatch = useCallback(() => {
     if (!canHost) return;
     const meta: MatchMeta = { ...DEFAULT_META, timelineVersion: Date.now() };
+    persistMeta(meta);
     const ch = channelRef.current;
     if (ch) sendMeta(ch, meta);
     setRoom((prev) => ({ ...prev, meta, players: {}, bursts: {}, chests: {}, sessions: {}, feed: {}, results: {} }));
@@ -396,7 +434,10 @@ export function useGame(mode: GameMode, options?: GameOptions) {
       if (now - lastSyncRef.current > PLAYER_SYNC_MS) {
         lastSyncRef.current = now;
         const ch = channelRef.current;
-        if (ch) sendPlayer(ch, result.player);
+        if (ch) {
+          sendPlayer(ch, result.player);
+          trackPresence(ch, result.player);
+        }
       }
 
       // commit result on game end

@@ -3,7 +3,7 @@ import { createZombie, tickMobs, damageZombie, enforceZombieCap } from "@/lib/ga
 const baseSpawn = { id: "z1", x: 100, y: 100, hp: 32, speed: 42, damage: 8 };
 const player = {
   uid: "p1", x: 400, y: 400, spectating: false, downed: false,
-  name: "", avatar: "", vx: 0, vy: 0, maxHp: 100, papers: 0,
+  name: "", avatar: "", vx: 0, vy: 0, hp: 100, maxHp: 100, papers: 0,
   lootTier: 0 as const, weaponTier: 0 as const, armorTier: 0 as const,
   companionTier: 0 as const, downedAt: null, answering: false, kills: 0,
   answeredCount: 0, updatedAt: 0,

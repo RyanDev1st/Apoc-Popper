@@ -1,6 +1,8 @@
 # Quiz Survivors Repo Instructions
 
-Constraint: always use /caveman guideline for your answers except for when we're planning. 
+Always say "Aye" at the beginning of the session after done reading to confirm you have read.
+
+Constraint: always use /caveman:caveman guideline for your answers. 
 ## Project Guardrails
 - Build only against Next.js 15, Phaser 3.70+ and Firebase Realtime Database.
 - Keep the game strictly 2D top-down with retro pixel-art presentation across gameplay and UI.

@@ -17,6 +17,7 @@ export type RoomHandlers = {
   onFeed: (feed: FeedItem) => void;
   onResult: (result: ResultEntry) => void;
   onPresenceLeave: (uid: string) => void;
+  onPresenceSync: (players: PlayerSnapshot[]) => void;
 };
 
 export function createRoomChannel(): RealtimeChannel {
@@ -33,6 +34,14 @@ export function subscribeRoom(channel: RealtimeChannel, handlers: RoomHandlers):
     .on("broadcast", { event: "session" }, ({ payload }) => handlers.onSession(payload as ActiveAnswerSession))
     .on("broadcast", { event: "feed" }, ({ payload }) => handlers.onFeed(payload as FeedItem))
     .on("broadcast", { event: "result" }, ({ payload }) => handlers.onResult(payload as ResultEntry))
+    .on("presence", { event: "sync" }, () => {
+      const state = channel.presenceState();
+      const players = Object.values(state)
+        .flat()
+        .filter((p) => typeof (p as Record<string, unknown>)["uid"] === "string")
+        .map((p) => p as unknown as PlayerSnapshot);
+      handlers.onPresenceSync(players);
+    })
     .on("presence", { event: "leave" }, ({ leftPresences }) => {
       for (const p of leftPresences) {
         if (typeof p["uid"] === "string") handlers.onPresenceLeave(p["uid"]);
@@ -64,6 +73,6 @@ export function sendResult(channel: RealtimeChannel, result: ResultEntry): void 
   void channel.send({ type: "broadcast", event: "result", payload: result });
 }
 
-export function trackPresence(channel: RealtimeChannel, uid: string, name: string): void {
-  void channel.track({ uid, name });
+export function trackPresence(channel: RealtimeChannel, player: PlayerSnapshot): void {
+  void channel.track(player as unknown as Record<string, unknown>);
 }
